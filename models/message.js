@@ -2,6 +2,7 @@
 
 /** Message class for message.ly */
 
+const { DB_URI, SECRET_KEY, BCRYPT_WORK_FACTOR } = require("../config");
 const { NotFoundError } = require("../expressError");
 const db = require("../db");
 

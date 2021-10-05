@@ -5,6 +5,7 @@
 const { DB_URI, SECRET_KEY, BCRYPT_WORK_FACTOR } = require("../config");
 const { NotFoundError } = require("../expressError");
 const db = require("../db");
+const app = require("../app");
 
 /** Message on the site. */
 

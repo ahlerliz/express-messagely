@@ -4,7 +4,7 @@ const { DB_URI, SECRET_KEY, BCRYPT_WORK_FACTOR } = require("../config");
 const bcrypt = require("bcrypt");
 const { BadRequestError } = require("../expressError");
 const db = require("../db");
-
+const app = require("../app");
 
 /** User of the site. */
 
@@ -16,67 +16,52 @@ class User {
    */
 
   static async register({ username, password, first_name, last_name, phone }) {
-    // taking parameters, adding them to the db
-    // hash password 
-    // confirm the username is available
-    // check if phone is available
 
-    const hash_password = bcrypt.hash(password, BCRYPT_WORK_FACTOR)
+    const hash_password = await bcrypt.hash(password, BCRYPT_WORK_FACTOR)
 
-    try {
-      const result = await db.query(
-        `INSERT INTO users (username,
-                                password,
-                                first_name,
-                                last_name,
-                                phone, 
-                                join_at)
-            VALUES
-              ($1, $2, $3, $4, $5, current_timestamp)
-            RETURNING username, password, first_name, last_name, phone`,
-        [username, hash_password, first_name, last_name, phone]);
-    } catch (err) {
-      console.log(err)
-      throw (new BadRequestError)
-    }
-    console.log("RESULT=",result);
+    const result = await db.query(
+      `INSERT INTO users (username,
+                              password,
+                              first_name,
+                              last_name,
+                              phone, 
+                              join_at,
+                              last_login_at)
+          VALUES
+            ($1, $2, $3, $4, $5, current_timestamp, current_timestamp)
+          RETURNING username, password, first_name, last_name, phone`,
+      [username, hash_password, first_name, last_name, phone]);
+
+    if (!result) throw new BadRequestError();
+
     return result.rows[0]
   }
 
   /** Authenticate: is username/password valid? Returns boolean. */
 
   static async authenticate(username, password) {
-    // get username from database, returning hashed password 
-    // hash given password, compare hashed to hashed  
-    //const { username, password } = req.body;
-    // 
-    const result = await db.query(
+
+    let result = await db.query(
       `SELECT password
          FROM users
          WHERE username = $1`,
       [username]);
     const user = result.rows[0];
 
-
     return Boolean(user) && (await bcrypt.compare(password, user.password) === true);
-
-    // throw new UnauthorizedError("Invalid user/password");
-
-
   }
 
   /** Update last_login_at for user */
 
   static async updateLoginTimestamp(username) {
-    try {
-      await db.query(
-        `UPDATE users
-        SET last_login_at=current_timestamp,
+
+    const result = await db.query(
+      `UPDATE users
+        SET last_login_at = current_timestamp
         WHERE username = $1`,
-        [username]);
-    } catch (err) {
-      throw (new BadRequestError);
-    }
+      [username]);
+
+    if (!result) throw new BadRequestError();
   }
 
   /** All: basic info on all users:
@@ -101,24 +86,21 @@ class User {
    *          last_login_at } */
 
   static async get(username) {
-    try {
-      const result = await db.query(
-        `SELECT { 
+
+    const result = await db.query(
+      `SELECT 
           username,
           first_name,
           last_name,
           phone,
           join_at,
-          last_login_at }
+          last_login_at
         FROM users
         WHERE username = $1`,
-        [username]
-      );
-    }
+      [username]
+    );
 
-    catch (err) {
-      throw (new BadRequestError);
-    }
+    if (!result) throw new BadRequestError();
 
     const user = result.rows[0];
     return user;
@@ -135,38 +117,28 @@ class User {
 
   static async messagesFrom(username) {
 
-    try {
-      const mResult = await db.query(
-        `
-      SELECT id, to_user as toUser, body, sent_at, read_at
+    const mResult = await db.query(
+      `
+      SELECT id, to_username, body, sent_at, read_at
       FROM messages
       WHERE from_username = $1
       `, [username]
-      );
-    } 
-    
-    catch (err) {
-      throw (new BadRequestError);
-    }
-
+    );
     let messages = mResult.rows;
+    
+    if (!mResult) throw new BadRequestError();
 
-    // messages = [{id: 1, to_user: {username: lizzy, first_name: Lizzy, last_name: ..., phone: }, body: "hello", sent_at: date, read_at: other_date},...]
-
-    // Loop over messages
-    // Query users table
-    // replace value of messages[i].to_user with user object
     for (let message of messages) {
-      const uResult = await db.query(
+      let uResult = await db.query(
         `
         SELECT username, first_name, last_name, phone
         FROM users
         WHERE username = $1
-        `, [message.to_user]
+        `, [message.to_username]
       )
       const user = uResult.rows[0];
-      
       message.to_user = user;
+      delete message.to_username
     }
 
     return messages;
@@ -182,38 +154,30 @@ class User {
    */
 
   static async messagesTo(username) {
-    try {
-      const mResult = await db.query(
-        `
-      SELECT id, to_user as toUser, body, sent_at, read_at
+
+    const mResult = await db.query(
+      `
+      SELECT id, from_username, body, sent_at, read_at
       FROM messages
       WHERE to_username = $1
       `, [username]
-      );
-    } 
-    
-    catch (err) {
-      throw (new BadRequestError);
-    }
-
+    );
     let messages = mResult.rows;
 
-    // messages = [{id: 1, to_user: {username: lizzy, first_name: Lizzy, last_name: ..., phone: }, body: "hello", sent_at: date, read_at: other_date},...]
-
-    // Loop over messages
-    // Query users table
-    // replace value of messages[i].to_user with user object
+    if (!mResult) throw new BadRequestError();
+    
     for (let message of messages) {
-      const uResult = await db.query(
+      let uResult = await db.query(
         `
         SELECT username, first_name, last_name, phone
         FROM users
         WHERE username = $1
-        `, [message.from_user]
+        `, [message.from_username]
       )
       const user = uResult.rows[0];
-      
-      message.to_user = user;
+
+      message.from_user = user;
+      delete message.from_username
     }
 
     return messages;

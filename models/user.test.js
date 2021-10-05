@@ -29,6 +29,7 @@ describe("Test User class", function () {
 
     expect(u.username).toBe("joel");
     expect(u.password).not.toBe(undefined);
+    expect(u.password).not.toEqual({});
   });
 
   test("can authenticate", async function () {

@@ -1,0 +1,5 @@
+- we needed to await bcrypt.hash because it was just giving us a promise
+- we set result to a const inside each try block, and then referenced it outside
+- User.register test was passing even though it was adding a empty object to the DB as the hashed password
+- When registering a user, we were not passing in a last_login_at, which was being asked for in the get_user() test
+- Get_message tests asked for to_user as opposed to to_username, so we had to create to_user and delete to_username 

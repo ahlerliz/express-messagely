@@ -8,6 +8,7 @@ const { SECRET_KEY } = require("../config");
 const { UnauthorizedError } = require("../expressError");
 
 
+
 /** Middleware: Authenticate user. */
 
 function authenticateJWT(req, res, next) {

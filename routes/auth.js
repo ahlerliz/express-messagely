@@ -17,10 +17,10 @@ const User = require("../models/user");
  router.post('/login', async function(req,res,next) {
     const { username, password } = req.body;
 
-    const valid_credentials = await User.authenticate(username, password);
-
-    if (valid_credentials) {
-        let token = jwt.sign({ username }, SECRET_KEY);
+    const validCredentials = await User.authenticate(username, password);
+  // fail fast!
+    if (validCredentials) {
+        const token = jwt.sign({ username }, SECRET_KEY);
 
         return res.json({ token });
       }
